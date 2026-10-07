@@ -1,0 +1,30 @@
+#!/bin/sh
+# .githooks/pre-commit — stop secrets and private files before they enter history.
+set -eu
+top=$(git rev-parse --show-superproject-working-tree)
+[ -n "$top" ] || top=$(git rev-parse --show-toplevel)
+staged="${TMPDIR:-/tmp}/huo-staged.$$"
+trap 'rm -f "$staged"' EXIT
+
+# 1. Forbidden paths: env files, client runtime state, runtime output, UO data files.
+bad=$(git diff --cached --name-only --diff-filter=ACMR \
+  | grep -Ev '(^|/)\.env\.example$' \
+  | grep -E '(^|/)\.env($|\.)|(^|/)settings\.json$|(^|/)Profiles/|(^|/)(runs|traces|saves)/|\.(mul|uop|log)$' || true)
+if [ -n "$bad" ]; then
+  echo "pre-commit: refusing to commit these paths:"; echo "$bad"; exit 1
+fi
+
+# 2. Any real value from .env appearing in added lines (values never printed).
+if [ -f "$top/.env" ]; then
+  git diff --cached -U0 --no-color | grep '^+' > "$staged" || true
+  grep -Ev '^[[:space:]]*(#|$)' "$top/.env" | cut -d= -f2- | sed -e 's/^["'\'']//' -e 's/["'\'']$//' \
+  | while IFS= read -r val; do
+      [ "${#val}" -ge 6 ] || continue
+      if grep -qF -- "$val" "$staged"; then
+        echo "pre-commit: a value from .env appears in the staged changes"; exit 1
+      fi
+    done
+fi
+
+# 3. Pattern scan (gitleaks >= 8.19 syntax; older: gitleaks protect --staged).
+gitleaks git --staged --redact --no-banner

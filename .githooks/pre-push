@@ -1,0 +1,3 @@
+#!/bin/sh
+set -eu
+gitleaks git --redact --no-banner --log-opts="HEAD --not --remotes"
