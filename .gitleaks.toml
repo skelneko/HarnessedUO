@@ -1,0 +1,22 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "tailscale-hostname"
+description = "Tailscale MagicDNS hostname"
+regex = '''[a-z0-9-]+\.[a-z0-9-]+\.ts\.net'''
+
+[[rules]]
+id = "tailscale-cgnat-ip"
+description = "Address in Tailscale's 100.64.0.0/10 range"
+regex = '''\b100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3}\b'''
+
+[[rules]]
+id = "tailscale-key"
+description = "Tailscale auth, API or OAuth client key"
+regex = '''tskey-[a-z]+-[A-Za-z0-9-]{10,}'''
+
+[[rules]]
+id = "macos-home-path"
+description = "Absolute home path; write ~ or $HOME instead"
+regex = '''/Users/[A-Za-z0-9._-]+/'''
