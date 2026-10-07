@@ -1,6 +1,10 @@
 # Committed, non-secret version pins. Secrets and private endpoints go in .env, never here.
 
 [tools]      # P0.04: dotnet_sdk, gitleaks, uv, python
+dotnet_sdk = "10.0.401"
+gitleaks = "8.30.1"
+uv = "0.12.23"
+python = "3.12.15"
 
 [uo_data]    # P0.07: version, root
 
