@@ -1,0 +1,11 @@
+# Committed, non-secret version pins. Secrets and private endpoints go in .env, never here.
+
+[tools]      # P0.04: dotnet_sdk, gitleaks, uv, python
+
+[uo_data]    # P0.07: version, root
+
+[modernuo]   # P0.08: tag, commit
+
+[classicuo]  # P0.10
+
+[models]     # P0.14: model ids, quant, host, context
