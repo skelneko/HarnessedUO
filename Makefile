@@ -15,7 +15,7 @@ hooks: ## Per-clone git setup: hooks path, fetch-only upstream, gh default repo
 
 .PHONY: deps
 deps: ## Install Homebrew tools, .NET SDK, uv and Python, then print versions
-	brew bundle install --file=Brewfile --no-upgrade
+	@if [ -w "$$(brew --prefix)" ]; then brew bundle install --file=Brewfile --no-upgrade; else echo "deps: Homebrew belongs to $$(stat -f %Su "$$(brew --prefix)"), so this only checks; install as that user (P0.04 step 7)"; HOMEBREW_NO_AUTO_UPDATE=1 brew bundle check --file=Brewfile --no-upgrade --verbose; fi
 	uv python install
 	@echo "dotnet $$(dotnet --version)"
 	@echo "gitleaks $$(gitleaks version)"
