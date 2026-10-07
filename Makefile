@@ -21,3 +21,7 @@ deps: ## Install Homebrew tools, .NET SDK, uv and Python, then print versions
 	@echo "gitleaks $$(gitleaks version)"
 	@uv --version
 	@uv run python --version
+
+.PHONY: doctor
+doctor: ## Check tools, git setup, .env and host role (never prints secrets)
+	@uv run python huo/tools/doctor.py

@@ -265,3 +265,21 @@ __pycache__/
 *.pyc
 /.svn
 Data
+
+# HarnessedUO (P0.02): secrets, client state, runtime output, UO data
+.env
+.env.*
+!.env.example
+settings.json
+Profiles/
+runs/
+traces/
+saves/
+uo-data/
+*.mul
+*.uop
+*.log
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
