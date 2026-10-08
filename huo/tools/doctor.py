@@ -116,11 +116,21 @@ def check_git() -> None:
     else:
         add("git", "upstream remote", "PASS", "fetch-only, push DISABLED")
 
-    default = out("gh", "repo", "set-default", "--view")
-    if default == REPO:
+    # gh stores its default repo in git config (remote.<name>.gh-resolved); read that
+    # directly, so the check works on a clone with no gh login (e.g. the Mini's station).
+    resolved = out("git", "config", "--get-regexp", r"^remote\..*\.gh-resolved$") or ""
+    entries = [line.split(None, 1) for line in resolved.splitlines() if line.strip()]
+    ok = False
+    if len(entries) == 1 and len(entries[0]) == 2:
+        key, value = entries[0]
+        remote = key[len("remote."):-len(".gh-resolved")]
+        url = out("git", "remote", "get-url", remote) or ""
+        ok = value == REPO or (value == "base" and re.search(r"github\.com[:/]" + REPO + r"(\.git)?$", url) is not None)
+    if ok:
         add("git", "gh default repo", "PASS", REPO)
     else:
-        add("git", "gh default repo", "FAIL", default or "unset", "run make hooks")
+        detail = "unset" if not entries else ("set on several remotes" if len(entries) > 1 else "not " + REPO)
+        add("git", "gh default repo", "FAIL", detail, "run make hooks")
 
     remotes = out("git", "remote", "-v") or ""
     leaky = sorted({line.split()[0] for line in remotes.splitlines() if CRED_IN_URL.search(line)})
