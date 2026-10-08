@@ -4,7 +4,9 @@ An independent fork of [ClassicUO](https://github.com/ClassicUO/ClassicUO) (BSD-
 
 ## What this is
 
-An AI-agent harness for Ultima Online, built into the ClassicUO client: an in-process engine (`src/ClassicUO.Client/Harness/`) plus a Python agent service (`huo/`) that plays tasks you give it in game, using local models (LM Studio or Ollama) or Claude.
+A side project for myself to learn what a harness product could be.
+
+HarnessedUO is an AI-agent harness for Ultima Online, built into the ClassicUO client: an in-process engine (`src/ClassicUO.Client/Harness/`) plus a Python agent service (`huo/`) that plays tasks you give it in game, using local models (LM Studio or Ollama) or Claude.
 
 Status: early setup (phase P0). Not usable yet. A personal, non-commercial project.
 
