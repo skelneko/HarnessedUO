@@ -7,6 +7,7 @@ uv = "0.12.23"
 python = "3.12.15"
 
 [uo_data]    # P0.07: version, root
+client_version = "7.0.117.1"
 
 [modernuo]   # P0.08: tag, commit
 
