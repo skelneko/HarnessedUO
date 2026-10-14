@@ -29,3 +29,13 @@ doctor: ## Check tools, git setup, .env, host role and UO data (never prints sec
 .PHONY: doctor-deep
 doctor-deep: ## Doctor plus a SHA-256 check of every UO data file (slower)
 	@uv run python huo/tools/doctor.py --deep
+
+.PHONY: shard shard-attach shard-stop shard-status
+shard: ## Start the ModernUO shard in tmux session "shard" (Mini only)
+	@sh huo/tools/shard.sh start
+shard-attach: ## Attach to the shard console; detach with Ctrl+b, then d
+	@sh huo/tools/shard.sh attach
+shard-stop: ## Save, then shut the shard down (Mini only)
+	@sh huo/tools/shard.sh stop
+shard-status: ## Shard tmux session and port 2593 (exit 0 only if both are up)
+	@sh huo/tools/shard.sh status
