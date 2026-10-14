@@ -11,6 +11,8 @@ client_version = "7.0.117.1"
 root = "/Users/Shared/uo-data"     # outside every home, so each Mac account can read it
 
 [modernuo]   # P0.08: tag, commit
+tag = "0.15.6.198"
+commit = "92ed9c5456e4b38c6d48f3204904877098ff0f7b"
 
 [classicuo]  # P0.10
 
