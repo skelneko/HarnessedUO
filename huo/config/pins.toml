@@ -8,6 +8,7 @@ python = "3.12.15"
 
 [uo_data]    # P0.07: version, root
 client_version = "7.0.117.1"
+root = "/Users/Shared/uo-data"     # outside every home, so each Mac account can read it
 
 [modernuo]   # P0.08: tag, commit
 

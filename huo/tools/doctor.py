@@ -1,12 +1,14 @@
 """make doctor: one PASS/WARN/FAIL row per check for this clone and host.
 
-Standard library only. Run with: uv run python huo/tools/doctor.py [--json]
+Standard library only. Run with: uv run python huo/tools/doctor.py [--json] [--deep]
+--deep also hashes every frozen UO data file against its manifest (slower).
 Never prints a .env value, except HOST_ROLE (mbp or mini), which is not a secret.
 Exits 1 if any row is FAIL, else 0.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import platform
@@ -210,6 +212,81 @@ def check_host(values: dict[str, str]) -> None:
         add("host", "HOST_ROLE", "FAIL", "missing or not mbp|mini", "set HOST_ROLE=mbp or HOST_ROLE=mini in .env")
 
 
+def sha256_file(path: Path) -> str:
+    with path.open("rb") as f:
+        return hashlib.file_digest(f, "sha256").hexdigest()
+
+
+def check_uo_data(pins: dict, deep: bool) -> None:
+    """Frozen UO data (P0.07): <root>/<client_version> from pins, owned by root, nothing writable, manifest complete."""
+    data = pins.get("uo_data", {})
+    version, root = data.get("client_version"), data.get("root")
+    if not version or not root:
+        add("data", "folder", "FAIL", "client_version or root not pinned", "set both under [uo_data] in huo/config/pins.toml (P0.07)")
+        return
+    folder = Path(root).expanduser() / version
+    if not folder.is_dir():
+        add("data", "folder", "FAIL", f"{folder} not found", "copy the frozen folder to this Mac (P0.07 steps 4-5)")
+        return
+    add("data", "folder", "PASS", str(folder))
+
+    missing = [n for n in ("tiledata.mul", "client.exe") if not (folder / n).is_file()]
+    if missing:
+        add("data", "files", "FAIL", "missing: " + ", ".join(missing), "copy the frozen folder again (P0.07 steps 4-5)")
+    else:
+        add("data", "files", "PASS", "tiledata.mul, client.exe")
+
+    on_disk: set[str] = set()
+    writable = not_root = 0
+    for dirpath, dirnames, filenames in os.walk(folder):
+        here = Path(dirpath)
+        for p in [here] + [here / f for f in filenames]:
+            st = p.lstat()
+            writable += bool(st.st_mode & 0o222)
+            not_root += st.st_uid != 0
+        on_disk.update((here / f).relative_to(folder).as_posix() for f in filenames)
+    if writable or not_root:
+        add("data", "read-only", "FAIL", f"{writable} writable, {not_root} not owned by root",
+            f"sudo chown -R root:wheel {folder}; sudo chmod -R a+rX,a-w {folder}")
+    else:
+        add("data", "read-only", "PASS", "owned by root, nothing writable")
+
+    manifest = folder / "MANIFEST.sha256"
+    if not manifest.is_file():
+        add("data", "manifest", "FAIL", "MANIFEST.sha256 missing", "rebuild it on the PC (P0.07 step 2) and copy again")
+        return
+    text = manifest.read_bytes().decode("utf-8", errors="replace")
+    listed: dict[str, str] = {}
+    malformed = 0
+    for line in text.split("\n"):
+        digest, sep, rel = line.partition("  ")
+        if sep and re.fullmatch(r"[0-9a-f]{64}", digest) and rel:
+            listed[rel] = digest
+        elif line.strip():
+            malformed += 1
+    on_disk.discard("MANIFEST.sha256")
+    gone, extra = sorted(set(listed) - on_disk), sorted(on_disk - set(listed))
+    problems = []
+    if "\r" in text:
+        problems.append("CRLF line endings (shasum -c needs LF)")
+    if malformed:
+        problems.append(f"{malformed} malformed lines")
+    if gone:
+        problems.append(f"{len(gone)} listed but missing, e.g. {gone[0]}")
+    if extra:
+        problems.append(f"{len(extra)} not listed, e.g. {extra[0]}")
+    if not problems and deep:
+        bad = [rel for rel, digest in sorted(listed.items()) if sha256_file(folder / rel) != digest]
+        if bad:
+            problems.append(f"{len(bad)} hash mismatches, e.g. {bad[0]}")
+    if problems:
+        add("data", "manifest", "FAIL", "; ".join(problems), "copy the frozen folder again (P0.07 steps 4-5); never edit it in place")
+    elif deep:
+        add("data", "manifest", "PASS", f"{len(listed)} files, all hashes match")
+    else:
+        add("data", "manifest", "PASS", f"{len(listed)} files present; hashes checked by make doctor-deep")
+
+
 def main() -> int:
     pins_path = ROOT / "huo" / "config" / "pins.toml"
     try:
@@ -222,6 +299,7 @@ def main() -> int:
     values = check_env()
     check_tree()
     check_host(values)
+    check_uo_data(pins, "--deep" in sys.argv[1:])
 
     if "--json" in sys.argv[1:]:
         print(json.dumps(rows, indent=2))
