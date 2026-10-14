@@ -14,7 +14,9 @@ import os
 import platform
 import re
 import shutil
+import socket
 import stat
+import struct
 import subprocess
 import sys
 import tomllib
@@ -24,6 +26,8 @@ ROOT = Path(__file__).resolve().parents[2]
 REPO = "skelneko/HarnessedUO"
 ENV_HOME = Path.home() / "Library" / "Application Support" / "HarnessedUO"
 ROLES = ("mbp", "mini")
+SHARD_PORT = 2593
+MODERNUO = Path.home() / "src" / "ModernUO" / "Distribution"
 PLACEHOLDER = re.compile(r"<[^<>]*>")
 CRED_IN_URL = re.compile(r"://[^/@\s]+:[^/@\s]+@")
 
@@ -287,6 +291,96 @@ def check_uo_data(pins: dict, deep: bool) -> None:
         add("data", "manifest", "PASS", f"{len(listed)} files present; hashes checked by make doctor-deep")
 
 
+def exe_version(path: Path) -> str | None:
+    """File version from a Windows exe's VS_FIXEDFILEINFO (signature 0xFEEF04BD after "VS_VERSION_INFO")."""
+    data = path.read_bytes()
+    start = data.find("VS_VERSION_INFO".encode("utf-16-le"))
+    sig = data.find(b"\xbd\x04\xef\xfe", start) if start >= 0 else -1
+    if sig < 0 or sig + 16 > len(data):
+        return None
+    ms, ls = struct.unpack_from("<II", data, sig + 8)
+    return f"{ms >> 16}.{ms & 0xFFFF}.{ls >> 16}.{ls & 0xFFFF}"
+
+
+def check_client_version(pins: dict) -> None:
+    """P0.12: client.exe in the frozen folder carries the pinned client_version."""
+    data = pins.get("uo_data", {})
+    version, root = data.get("client_version"), data.get("root")
+    exe = Path(root).expanduser() / version / "client.exe" if version and root else None
+    if exe is None or not exe.is_file():
+        return  # the data rows above already FAIL
+    found = exe_version(exe)
+    if found is None:
+        add("data", "client version", "FAIL", "no version resource in client.exe", "copy the frozen folder again (P0.07)")
+    elif found != version:
+        add("data", "client version", "FAIL", f"client.exe is {found}, pin is {version}",
+            "freeze the matching data (P0.07) or fix client_version in pins")
+    else:
+        add("data", "client version", "PASS", f"client.exe {found} = pin")
+
+
+def port_open(port: int) -> bool:
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=2):
+            return True
+    except OSError:
+        return False
+
+
+def tilde(path: Path) -> str:
+    home = str(Path.home())
+    s = str(path)
+    return "~" + s[len(home):] if s == home or s.startswith(home + os.sep) else s
+
+
+def check_shard(values: dict[str, str]) -> None:
+    """P0.09, Mini only: tmux session "shard" and port 2593; saves configured outside every repo."""
+    if values.get("HOST_ROLE") != "mini":
+        return
+    listening = port_open(SHARD_PORT)
+    if not MODERNUO.is_dir():
+        # This account doesn't own the shard (e.g. huodev); it can only see the port.
+        add("shard", "port 2593", "PASS" if listening else "WARN",
+            "listening (shard runs under another account)" if listening else "not listening",
+            "" if listening else "as station: make shard")
+        return
+    p = run("tmux", "has-session", "-t", "shard")
+    session = p is not None and p.returncode == 0
+    if session and listening:
+        add("shard", "running", "PASS", "tmux session shard, port 2593 listening")
+    else:
+        add("shard", "running", "WARN",
+            f"tmux session {'yes' if session else 'no'}, port 2593 {'listening' if listening else 'not listening'}",
+            "make shard, then make shard-status")
+
+    config = MODERNUO / "Configuration" / "modernuo.json"
+    try:
+        settings = json.loads(config.read_text(encoding="utf-8")).get("settings", {})
+    except FileNotFoundError:
+        add("shard", "save path", "FAIL", "modernuo.json missing", "first full start (P0.09 step 3)")
+        return
+    except (OSError, ValueError, AttributeError):
+        add("shard", "save path", "FAIL", "modernuo.json unreadable", "check the file by hand")
+        return
+    raw = settings.get("world.savePath") if isinstance(settings, dict) else None
+    if not raw:
+        add("shard", "save path", "FAIL", "world.savePath not set", "set it in modernuo.json (P0.09 step 5)")
+        return
+    save = Path(raw).expanduser()
+    if not save.is_absolute():
+        save = MODERNUO / save
+    save = save.resolve()
+    repos = [ROOT.resolve(), MODERNUO.parent.resolve()]
+    inside = [r for r in repos if save == r or r in save.parents]
+    if inside:
+        add("shard", "save path", "FAIL", f"{tilde(save)} is inside {tilde(inside[0])}",
+            "set world.savePath to ~/uo-shard/main/saves (P0.09 step 5)")
+    elif not save.is_dir():
+        add("shard", "save path", "FAIL", f"{tilde(save)} missing", f"mkdir -p {tilde(save)}")
+    else:
+        add("shard", "save path", "PASS", f"{tilde(save)}, outside both repos")
+
+
 def main() -> int:
     pins_path = ROOT / "huo" / "config" / "pins.toml"
     try:
@@ -300,6 +394,8 @@ def main() -> int:
     check_tree()
     check_host(values)
     check_uo_data(pins, "--deep" in sys.argv[1:])
+    check_client_version(pins)
+    check_shard(values)
 
     if "--json" in sys.argv[1:]:
         print(json.dumps(rows, indent=2))
