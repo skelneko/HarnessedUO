@@ -23,5 +23,9 @@ deps: ## Install Homebrew tools, .NET SDK, uv and Python, then print versions
 	@uv run python --version
 
 .PHONY: doctor
-doctor: ## Check tools, git setup, .env and host role (never prints secrets)
+doctor: ## Check tools, git setup, .env, host role and UO data (never prints secrets)
 	@uv run python huo/tools/doctor.py
+
+.PHONY: doctor-deep
+doctor-deep: ## Doctor plus a SHA-256 check of every UO data file (slower)
+	@uv run python huo/tools/doctor.py --deep

@@ -20,3 +20,8 @@ regex = '''tskey-[a-z]+-[A-Za-z0-9-]{10,}'''
 id = "macos-home-path"
 description = "Absolute home path; write ~ or $HOME instead"
 regex = '''/Users/[A-Za-z0-9._-]+/'''
+
+[[rules.allowlists]]
+description = "/Users/Shared is the macOS shared folder, not a home (P0.07 UO data)"
+regexTarget = "match"
+regexes = ['''^/Users/Shared/$''']
