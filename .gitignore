@@ -283,3 +283,7 @@ uo-data/
 .venv/
 __pycache__/
 *.pyc
+
+# ClassicUO writes these into its working directory (P0.10 step 4)
+/Logs/
+/Data/

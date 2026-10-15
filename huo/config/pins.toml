@@ -15,5 +15,6 @@ tag = "0.15.6.198"
 commit = "92ed9c5456e4b38c6d48f3204904877098ff0f7b"
 
 [classicuo]  # P0.10
+fork_point = "ee79d7ebc1cc0e53ff84fe6cae17d389e2737f93"
 
 [models]     # P0.14: model ids, quant, host, context
