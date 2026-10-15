@@ -39,3 +39,7 @@ shard-stop: ## Save, then shut the shard down (Mini only)
 	@sh huo/tools/shard.sh stop
 shard-status: ## Shard tmux session and port 2593 (exit 0 only if both are up)
 	@sh huo/tools/shard.sh status
+
+.PHONY: client
+client: ## Build the client (Release) and record the cuo path in runs/client-path
+	@sh huo/tools/client.sh
