@@ -43,3 +43,7 @@ shard-status: ## Shard tmux session and port 2593 (exit 0 only if both are up)
 .PHONY: client
 client: ## Build the client (Release) and record the cuo path in runs/client-path
 	@sh huo/tools/client.sh
+
+.PHONY: play
+play: ## Launch the client against the shard on the Mini (MBP only; type credentials at login)
+	@uv run python huo/tools/play.py
